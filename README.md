@@ -3,7 +3,7 @@ A beginner-friendly tool built in Java that helps you learn CTF challenges
 the right way — by teaching you prerequisites before decoding anything.
 
 ## What it does
-- Detects Base64, Hex and ROT13/Caesar from raw string input
+- Detects Base64, Hex, Binary , Octal ,ROT13 and Caesar brute force from raw string input
 - Shows what concepts you need to understand before solving
 - Decodes the string if you want
 
