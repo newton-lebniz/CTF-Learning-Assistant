@@ -4,7 +4,7 @@ public class CTFDetector{
 
 static void caesarBruteForce(String input){
 System.out.println("all possible ceasershifts:");
-for(int i=0;i<=25;i++){
+for(int i=1;i<=25;i++){
 StringBuilder decoded = new StringBuilder();
 for(char c:input.toCharArray()){
 if(Character.isLetter(c)){
@@ -79,6 +79,41 @@ String choice = sc.nextLine();
 if(choice.equals("y")){
 byte[] decoded = java.util.Base64.getDecoder().decode(input);
 System.out.println("decoded: " + new String(decoded));
+}
+
+}
+else if(input.matches("^[01\\s]+$") && input.length() > 7){
+System.out.println("binary detected");
+System.out.println("prerequisites");
+System.out.println("binary number system");
+System.out.println("each group of 8 bits = 1 byte=1 character");
+System.out.println("ASCII");
+System.out.println("want to decode it?(y/n)");
+String choice = sc.nextLine();
+if(choice.equals("y")){
+String[] bytes = input.trim().split(" ");
+StringBuilder decoded = new StringBuilder();
+for(String b:bytes){
+decoded.append((char)Integer.parseInt(b,2));
+}
+System.out.println("decoded: " + decoded);
+}
+
+}else if (input.matches("^[0-7\\s]+$") && input.length()>3){
+System.out.println("octal detected");
+System.out.println("prerequisites:");
+System.out.println("octal number system");
+System.out.println("each octal number represents a character");
+System.out.println("ASCII");
+System.out.println("want to decode it?(y/n)");
+String choice = sc.nextLine();
+if(choice.equals("y")){
+String[] parts = input.trim().split(" ");
+StringBuilder decoded = new StringBuilder();
+for(String part: parts){
+decoded.append((char)Integer.parseInt(part,8));
+}
+System.out.println("decoded: " + decoded);
 }
 }
 else{
