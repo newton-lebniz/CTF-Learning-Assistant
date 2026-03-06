@@ -1,3 +1,7 @@
+// CTF Learning Assistant - Java CLI Version (v1.0)
+// This was the original command line version built first
+// Web version (v2.0) at https://newton-lebniz.github.io has more features
+// Supports: Binary, Hex, Base64, ROT13, Caesar brute force, Octal
 import java.util.Scanner;
 
 public class CTFDetector{
