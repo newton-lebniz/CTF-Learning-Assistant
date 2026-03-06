@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>CTF Learning Assistant</title>
+    <link href = "https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body {
             background-color: #0d0d0d;
@@ -54,6 +56,16 @@
             color: #ffff00;
             font-size: 18px;
         }
+        #vigenereKey {
+            display: none;
+            background: #1a1a1a;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 8px;
+            font-family: monospace;
+            margin-top: 10px;
+            width: 250px;
+        }
     </style>
 </head>
 <body>
@@ -61,12 +73,101 @@
     <textarea id="input" placeholder="Paste your CTF string here..."></textarea>
     <br>
     <button onclick="detect()">Detect & Explain</button>
+    <button onclick="tryAll()">Try All Decoders</button>
+    <br>
+    <input id="vigenereKey" placeholder="Vigeneree key(if needed)" >
     <div id="output"></div>
     <div id="decoded"></div>
 
     <script>
         let currentType = "";
         let currentInput = "";
+
+        function tryAll() {
+            let input = document.getElementById("input").value.trim();
+            if (!input) {
+                document.getElementById("output").innerHTML = "enter a string";
+                return;
+             }
+
+    let results = "<h3>All Decoder Results:</h3>";
+
+    try {
+        let r = atob(input);
+        if (r && /[\x20-\x7E]/.test(r)) results += `<p><b>Base64:</b> ${r}</p>`;
+    } catch(e) {}
+
+    try {
+        let clean = input.replaceAll(" ","");
+        if (/^[0-9a-fA-F]+$/.test(clean) && clean.length%2===0) {
+            let r = "";
+            for (let i=0;i<clean.length;i+=2) r += String.fromCharCode(parseInt(clean.substr(i,2),16));
+            if (/[\x20-\x7E]/.test(r)) results += `<p><b>Hex:</b> ${r}</p>`;
+        }
+    } catch(e) {}
+
+    try {
+        let bytes = input.includes(" ") ? input.trim().split(" ") : input.trim().match(/.{8}/g);
+        if (bytes) {
+            let r = bytes.map(b => String.fromCharCode(parseInt(b,2))).join("");
+            if (/[\x20-\x7E]/.test(r)) results += `<p><b>Binary:</b> ${r}</p>`;
+        }
+    } catch(e) {}
+
+    try {
+        let r = input.split("").map(c => {
+            if (/[a-zA-Z]/.test(c)) {
+                let base = c===c.toUpperCase()?65:97;
+                return String.fromCharCode((c.charCodeAt(0)-base+13)%26+base);
+            }
+            return c;
+        }).join("");
+        results += `<p><b>ROT13:</b> ${r}</p>`;
+    } catch(e) {}
+
+    try {
+        let r = decodeURIComponent(input);
+        if (r !== input) results += `<p><b>URL:</b> ${r}</p>`;
+    } catch(e) {}
+
+    try {
+        let parts = input.trim().split(" ");
+        if (parts.every(p => /^[0-7]+$/.test(p))) {
+            let r = parts.map(o => String.fromCharCode(parseInt(o,8))).join("");
+            if (/[\x20-\x7E]/.test(r)) results += `<p><b>Octal:</b> ${r}</p>`;
+        }
+    } catch(e) {}
+
+    try {
+        const morseMap = {
+            '.-':'A','-...':'B','-.-.':'C','-..':'D','.':'E',
+            '..-.':'F','--.':'G','....':'H','..':'I','.---':'J',
+            '-.-':'K','.-..':'L','--':'M','-.':'N','---':'O',
+            '.--.':'P','--.-':'Q','.-.':'R','...':'S','-':'T',
+            '..-':'U','...-':'V','.--':'W','-..-':'X','-.--':'Y',
+            '--..':'Z'
+        };
+        let r = input.trim().split(" / ").map(word =>
+            word.split(" ").map(code => morseMap[code]||"?").join("")
+        ).join(" ");
+        if (!r.includes("?")) results += `<p><b>Morse:</b> ${r}</p>`;
+    } catch(e) {}
+
+    try {
+        let parts = input.split(" ");
+        if (parts.every(p => p==="{" || p==="}" || (parseInt(p)>=1 && parseInt(p)<=26))) {
+            let r = parts.map(token => {
+                if (token==="{") return "{";
+                if (token==="}") return "}";
+                return String.fromCharCode(parseInt(token)+64);
+            }).join("");
+            results += `<p><b>A1Z26:</b> ${r}</p>`;
+        }
+    } catch(e) {}
+
+    document.getElementById("output").innerHTML = results;
+    document.getElementById("decoded").innerHTML = "";
+}
 
         function detect() {
             let input = document.getElementById("input").value.trim();
@@ -110,16 +211,18 @@
                     <p>4. Base64 character list - A-Z, a-z, 0-9, +, /</p>
                     <button onclick="decode()">Decode</button>
                 `;
-            } else if (/^[a-zA-Z\s]+$/.test(input) && input.length > 3) {
+            } else if (/^[a-zA-Z\s\{\}_0-9]+$/.test(input) && input.length > 3) {
                 currentType = "caesar";
                 output.innerHTML = `
-                    <h3>Detected: Possibly ROT13 or Caesar Cipher</h3>
+                    <h3>Detected: Possibly ROT13 or Caesar Cipher or vegenere cipher</h3>
                     <h4>Prerequisites:</h4>
                     <p>1. Alphabet indexing - every letter has a position</p>
                     <p>2. Caesar cipher - letters shifted by a fixed number</p>
                     <p>3. ROT13 - Caesar shifted by exactly 13</p>
+                    <p>4. Vigenère cipher is a polyalphabetic encryption method using a keyword to encode a message</p>
                     <button onclick="decode()">ROT13 Decode</button>
                     <button onclick="bruteForce()">Brute Force Caesar</button>
+                    <button onclick="vigenereDecode()">vigenere decode</button>
                 `;
             } else if (/^[0-7\s]+$/.test(input) && input.length > 3) {
                 currentType = "octal";
@@ -138,6 +241,27 @@
                 <h4>prerequisites:</h4>
                 <p>1. alphabet indexing a=1,b=2...</p>
                 <p>2. numbers outsite 1-26 are not letters</p>
+                <button onclick="decode()">decode</button>
+                `;
+            } else if(/^[.\-\s\/]+$/.test(input)){
+                currentType="morse";
+                output.innerHTML=`
+                <h3> morse code detected</h3>
+                <h4>prerequisites</h4>
+                <p>1. morse code uses . and - to represent letters</p>
+                <p>2. each letter is separated by a space</p>
+                <p>3. each word is separated by a /</p>
+                <button onclick="decode()">decode</button>
+                `;
+            } else if (/%[0-9a-fA-F]{2}/.test(input)){
+                currentType="url";
+                output.innerHTML=`
+                <h3>URL encoding detected</h3>
+                <h4>prerequisites:</h4>
+                <p>1. URL encoding replaces unsafe characters with % followed by hex code</p>
+                <p>2. space becomes %20, { becomes %7B, } becomes %7D</p>
+                <p>3. used in web requests to safely transfmit speacial characters</p>
+                <p>4. common in web exploitation ctf challenges</p>
                 <button onclick="decode()">decode</button>
                 `;
             } else {
@@ -179,9 +303,59 @@
                     }
                     return token;
                 }).join("");
+            } else if (currentType==="url"){
+                result=decodeURIComponent(input);
+            } else if(currentType==="morse"){
+                const morseMap = {
+                    '.-':'A', '-...':'B', '-.-.':'C', '-..':'D', '.':'E',
+        '..-.':'F', '--.':'G', '....':'H', '..':'I', '.---':'J',
+        '-.-':'K', '.-..':'L', '--':'M', '-.':'N', '---':'O',
+        '.--.':'P', '--.-':'Q', '.-.':'R', '...':'S', '-':'T',
+        '..-':'U', '...-':'V', '.--':'W', '-..-':'X', '-.--':'Y',
+        '--..':'Z'
+                };
+                result = input.trim().split(" / ").map(word=>
+                    word.split(" ").map(code => morseMap[code] || "?").join("")
+                ).join(" ");
             }
 
-            document.getElementById("decoded").innerHTML = "<h3>Decoded: " + result + "</h3>";
+            let decodedDiv = document.getElementById("decoded");
+            decodedDiv.textContent = "decoded: " + result;
+        }
+
+        function vigenereDecode(){
+        let keyInput = document.getElementById("vigenereKey");
+        
+        if(keyInput.style.display==="none" || keyInput.style.display === ""){
+            keyInput.style.display="inline-block";
+            keyInput.focus();
+            return;
+        }
+
+        let key = keyInput.value.toUpperCase();
+        if(!key){
+            keyInput.focus();
+            return;
+        }
+            let input = currentInput;
+            let result = "";
+            let keyIndex = 0;
+
+            for(let i=0;i<input.length;i++){
+                let c = input[i];
+                if(/[a-zA-Z]/.test(c)){
+                    let base = c === c.toUpperCase()?65:97;
+                    let shift = key.charCodeAt(keyIndex%key.length) - 65;
+                    result += String.fromCharCode((c.charCodeAt(0)-base-shift+26)%26+base);
+                    keyIndex++;
+                }
+                else{
+                    result+=c;
+                }
+            }
+            let decodedDiv= document.getElementById("decoded");
+            decodedDiv.textContent="vigenere decoded:" + result;
+            document.getElementById("decoded").innerHTML = "<h3>vigenere decoded: " + result +"</h3>";
         }
 
         function bruteForce() {
