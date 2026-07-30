@@ -107,6 +107,13 @@
     } catch(e) {}
 
     try {
+        if (/^[A-Z2-7]+=*$/.test(input) && input.length > 3) {
+            let r = base32Decode(input);
+            if (/[\x20-\x7E]/.test(r)) results += `<p><b>Base32:</b> ${r}</p>`;
+        }
+    } catch(e) {}
+
+    try {
         let bytes = input.includes(" ") ? input.trim().split(" ") : input.trim().match(/.{8}/g);
         if (bytes) {
             let r = bytes.map(b => String.fromCharCode(parseInt(b,2))).join("");
@@ -199,6 +206,17 @@
                     <p>2. Binary - computers store everything as 0s and 1s</p>
                     <p>3. Hexadecimal notation - uses 0-9 and A-F</p>
                     <button onclick="decode()">Decode</button>
+                    <button onclick="xorBruteForce()">Try XOR (single-byte)</button>
+                `;
+            } else if (/^[A-Z2-7]+=*$/.test(input) && input.length > 3) {
+                currentType = "base32";
+                output.innerHTML = `
+                    <h3>Detected: Base32</h3>
+                    <h4>Prerequisites:</h4>
+                    <p>1. Base32 alphabet - only A-Z and 2-7 (no 0,1,8,9 - avoids letter confusion)</p>
+                    <p>2. Each character encodes 5 bits</p>
+                    <p>3. Output padded with = to a multiple of 8 characters</p>
+                    <button onclick="decode()">Decode</button>
                 `;
             } else if (/^[a-zA-Z0-9+\/]+=*$/.test(input) && input.length % 4 === 0) {
                 currentType = "base64";
@@ -281,6 +299,8 @@
                 for (let i = 0; i < clean.length; i += 2) {
                     result += String.fromCharCode(parseInt(clean.substr(i, 2), 16));
                 }
+            } else if (currentType === "base32") {
+                result = base32Decode(input);
             } else if (currentType === "base64") {
                 result = atob(input);
             } else if (currentType === "caesar") {
@@ -376,6 +396,47 @@
                 if (expected > 0) chiSq += Math.pow(observed - expected, 2) / expected;
             }
             return chiSq;
+        }
+
+        function base32Decode(input) {
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+            let clean = input.replace(/=+$/, "").toUpperCase();
+            let bits = "";
+            for (let char of clean) {
+                let val = alphabet.indexOf(char);
+                if (val === -1) throw new Error("Invalid Base32 character");
+                bits += val.toString(2).padStart(5, "0");
+            }
+            let bytes = [];
+            for (let i = 0; i + 8 <= bits.length; i += 8) {
+                bytes.push(parseInt(bits.substr(i, 8), 2));
+            }
+            return bytes.map(b => String.fromCharCode(b)).join("");
+        }
+
+        function xorBruteForce() {
+            let clean = currentInput.replaceAll(" ", "");
+            if (!/^[0-9a-fA-F]+$/.test(clean) || clean.length % 2 !== 0) {
+                document.getElementById("decoded").innerHTML = "XOR brute force only works on hex input.";
+                return;
+            }
+            let bytes = [];
+            for (let i = 0; i < clean.length; i += 2) {
+                bytes.push(parseInt(clean.substr(i, 2), 16));
+            }
+            let candidates = [];
+            for (let key = 0; key < 256; key++) {
+                let text = bytes.map(b => String.fromCharCode(b ^ key)).join("");
+                candidates.push({ key: key, text: text, score: chiSquaredScore(text) });
+            }
+            candidates.sort((a, b) => a.score - b.score);
+            let result = "<h3>Best Guesses (single-byte XOR, chi-squared ranked):</h3>";
+            candidates.slice(0, 5).forEach((c, i) => {
+                let tag = i === 0 ? " &larr; most likely" : "";
+                let safeText = c.text.replace(/[^\x20-\x7E]/g, ".");
+                result += `<p><b>Key 0x${c.key.toString(16).padStart(2,'0')}:</b> ${safeText}${tag}</p>`;
+            });
+            document.getElementById("decoded").innerHTML = result;
         }
 
         function bruteForce() {
