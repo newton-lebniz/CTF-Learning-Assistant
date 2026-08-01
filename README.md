@@ -17,4 +17,4 @@ I kept getting stuck on CTF challenges not because I couldn't solve them but bec
 ## Skills: 
 JavaScript, HTML, CSS, Cybersecurity, CTF
 
-Live at newton-lebniz.github.io
+Live at https://newton-lebniz.github.io/CTF-Learning-Assistant/
